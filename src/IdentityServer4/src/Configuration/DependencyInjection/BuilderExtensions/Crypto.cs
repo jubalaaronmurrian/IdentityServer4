@@ -13,6 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -167,40 +168,25 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             if (filename == null)
             {
-                filename = Path.Combine(Directory.GetCurrentDirectory(), "tempkey.rsa");
+                filename = Path.Combine(Directory.GetCurrentDirectory(), "tempkey.jwk");
             }
 
             if (File.Exists(filename))
             {
                 var keyFile = File.ReadAllText(filename);
-                var tempKey = JsonConvert.DeserializeObject<CryptoHelper.TemporaryRsaKey>(keyFile, new JsonSerializerSettings { ContractResolver = new CryptoHelper.RsaKeyContractResolver() });
+                var jwk = new Microsoft.IdentityModel.Tokens.JsonWebKey(keyFile);
 
-                return builder.AddSigningCredential(CryptoHelper.CreateRsaSecurityKey(tempKey.Parameters, tempKey.KeyId), signingAlgorithm);
+                var cred = new SigningCredentials(jwk, signingAlgorithm.ToString());
+                return builder.AddSigningCredential(cred);
             }
             else
             {
                 var key = CryptoHelper.CreateRsaSecurityKey();
-
-                RSAParameters parameters;
-
-                if (key.Rsa != null)
-                {
-                    parameters = key.Rsa.ExportParameters(includePrivateParameters: true);
-                }
-                else
-                {
-                    parameters = key.Parameters;
-                }
-
-                var tempKey = new CryptoHelper.TemporaryRsaKey
-                {
-                    Parameters = parameters,
-                    KeyId = key.KeyId
-                };
-
+                var jwk  = JsonWebKeyConverter.ConvertFromRSASecurityKey(key);
+                
                 if (persistKey)
                 {
-                    File.WriteAllText(filename, JsonConvert.SerializeObject(tempKey, new JsonSerializerSettings { ContractResolver = new CryptoHelper.RsaKeyContractResolver() }));
+                    File.WriteAllText(filename, System.Text.Json.JsonSerializer.Serialize(jwk, new JsonSerializerOptions { IgnoreNullValues = true }));
                 }
 
                 return builder.AddSigningCredential(key, signingAlgorithm);

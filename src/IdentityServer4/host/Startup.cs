@@ -148,7 +148,7 @@ namespace Host
         public static IIdentityServerBuilder AddSigningCredential(this IIdentityServerBuilder builder)
         {
             // create random RS256 key
-            //builder.AddDeveloperSigningCredential();
+            builder.AddDeveloperSigningCredential();
 
             // use an RSA-based certificate with RS256
             var rsaCert = new X509Certificate2("./keys/identityserver.test.rsa.p12", "changeit");
